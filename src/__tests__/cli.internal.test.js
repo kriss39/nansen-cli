@@ -2213,6 +2213,47 @@ describe('buildCommands', () => {
       );
     });
 
+    it('should keep ethereum as the default for non-cross-chain profiler endpoints', async () => {
+      const mockApi = {
+        addressLabels: vi.fn().mockResolvedValue({ data: [] })
+      };
+
+      await commands['profiler'](['labels'], mockApi, {}, { address: '0x123' });
+
+      expect(mockApi.addressLabels).toHaveBeenCalledWith(
+        expect.objectContaining({ address: '0x123', chain: 'ethereum' })
+      );
+    });
+
+    it('should resolve ENS on ethereum without forcing every profiler endpoint to chain all', async () => {
+      const ens = await import('../ens.js');
+      vi.spyOn(ens, 'isEnsName').mockReturnValue(true);
+      vi.spyOn(ens, 'resolveAddress').mockResolvedValue({
+        address: '0x0000000000000000000000000000000000000001',
+        ensName: 'vitalik.eth'
+      });
+
+      const mockApi = {
+        addressLabels: vi.fn().mockResolvedValue({ data: [] })
+      };
+
+      const result = await commands['profiler'](['labels'], mockApi, {}, { address: 'vitalik.eth' });
+
+      expect(ens.resolveAddress).toHaveBeenCalledWith('vitalik.eth', 'ethereum');
+      expect(mockApi.addressLabels).toHaveBeenCalledWith(
+        expect.objectContaining({
+          address: '0x0000000000000000000000000000000000000001',
+          chain: 'ethereum'
+        })
+      );
+      expect(result._ens).toEqual({
+        name: 'vitalik.eth',
+        resolvedAddress: '0x0000000000000000000000000000000000000001'
+      });
+
+      vi.restoreAllMocks();
+    });
+
     it('should call search with query', async () => {
       const mockApi = {
         entitySearch: vi.fn().mockResolvedValue({ results: [] })

@@ -1367,13 +1367,15 @@ export function buildCommands(deps = {}) {
       const subcommand = args[0] || 'help';
       let address = options.address;
       const entityName = options.entity || options['entity-name'];
-      const chain = options.chain || 'all';
+      // Only balance and counterparties-batch are cross-chain by default.
+      // The rest of the profiler address endpoints intentionally default to ethereum.
+      const chain = options.chain || (subcommand === 'balance' || subcommand === 'counterparties-batch' ? 'all' : 'ethereum');
 
       // Resolve ENS names (e.g. vitalik.eth → 0x...)
       let ensName;
       if (address && isEnsName(address)) {
         try {
-          const ensChain = subcommand === 'first-funder' ? 'ethereum' : chain;
+          const ensChain = subcommand === 'first-funder' || chain === 'all' ? 'ethereum' : chain;
           const resolved = await resolveAddress(address, ensChain);
           address = resolved.address;
           ensName = resolved.ensName;
