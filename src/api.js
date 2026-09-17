@@ -600,10 +600,11 @@ export function sleep(ms) {
  * Calculate delay with exponential backoff and jitter
  */
 function calculateBackoff(attempt, baseDelayMs, maxDelayMs, retryAfterMs = null) {
-  // If server specifies retry-after, use it (with some jitter)
-  if (retryAfterMs) {
+  // Retry-After is a server-provided lower bound. Client-side backoff caps must
+  // never make us retry before the server says it is ready.
+  if (retryAfterMs !== null) {
     const jitter = Math.random() * 1000;
-    return Math.min(retryAfterMs + jitter, maxDelayMs);
+    return retryAfterMs + jitter;
   }
   
   // Exponential backoff: base * 2^attempt + random jitter

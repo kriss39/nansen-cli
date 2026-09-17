@@ -3444,6 +3444,85 @@ describe('NansenAPI', () => {
       vi.useRealTimers();
     });
 
+    it('should not cap Retry-After seconds at the client max delay', async () => {
+      if (LIVE_TEST) return;
+
+      vi.useFakeTimers();
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+
+      const rateLimitResponse = {
+        ok: false,
+        status: 429,
+        headers: new Map([['retry-after', '60']]),
+        json: async () => ({ error: 'Rate limited' })
+      };
+      rateLimitResponse.headers.get = (name) =>
+        name.toLowerCase() === 'retry-after' ? '60' : null;
+
+      const successResponse = {
+        ok: true,
+        json: async () => ({ data: [] })
+      };
+
+      mockFetch
+        .mockResolvedValueOnce(rateLimitResponse)
+        .mockResolvedValueOnce(successResponse);
+
+      const promise = api.smartMoneyNetflow({ chains: ['solana'] });
+
+      await vi.advanceTimersByTimeAsync(30000);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(29999);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1);
+      await promise;
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+
+      randomSpy.mockRestore();
+      vi.useRealTimers();
+    });
+
+    it('should not cap an HTTP-date Retry-After at the client max delay', async () => {
+      if (LIVE_TEST) return;
+
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-09-18T00:00:00.000Z'));
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+      const httpDate = new Date('2026-09-18T00:01:00.000Z').toUTCString();
+
+      const rateLimitResponse = {
+        ok: false,
+        status: 429,
+        headers: new Map([['retry-after', httpDate]]),
+        json: async () => ({ error: 'Rate limited' })
+      };
+      rateLimitResponse.headers.get = (name) =>
+        name.toLowerCase() === 'retry-after' ? httpDate : null;
+
+      const successResponse = {
+        ok: true,
+        json: async () => ({ data: [] })
+      };
+
+      mockFetch
+        .mockResolvedValueOnce(rateLimitResponse)
+        .mockResolvedValueOnce(successResponse);
+
+      const promise = api.smartMoneyNetflow({ chains: ['solana'] });
+
+      await vi.advanceTimersByTimeAsync(30000);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(30000);
+      await promise;
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+
+      randomSpy.mockRestore();
+      vi.useRealTimers();
+    });
+
     it('should handle invalid retry-after header gracefully', async () => {
       if (LIVE_TEST) return;
       
