@@ -66,22 +66,30 @@ export function resolveBooleanOption(options, flags, key) {
  */
 export function filterFields(data, fields) {
   if (!fields || fields.length === 0) return data;
-  
+
   const fieldSet = new Set(fields);
-  
-  function filterObject(obj) {
+  const simpleFieldSet = new Set(fields.filter(field => !field.includes('.')));
+  const hasNestedSelection = (path) =>
+    fields.some(field => field.startsWith(`${path}.`));
+
+  function filterObject(obj, prefix = '') {
     if (obj === null || obj === undefined) return obj;
     if (Array.isArray(obj)) {
-      return obj.map(item => filterObject(item));
+      return obj.map(item => filterObject(item, prefix));
     }
     if (typeof obj !== 'object') return obj;
-    
+
     const filtered = {};
     for (const key of Object.keys(obj)) {
-      if (fieldSet.has(key)) {
-        // Explicitly requested — include as-is
+      const path = prefix ? `${prefix}.${key}` : key;
+      if (simpleFieldSet.has(key) || fieldSet.has(path)) {
+        // Explicitly requested — include as-is.
         filtered[key] = obj[key];
-      } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+      } else if (
+        typeof obj[key] === 'object' &&
+        obj[key] !== null &&
+        (simpleFieldSet.size > 0 || hasNestedSelection(path))
+      ) {
         if (Array.isArray(obj[key])) {
           // Only recurse into arrays whose elements are plain objects.
           // Primitive arrays (e.g. tags: ["a","b"]) are dropped unless the
@@ -89,15 +97,14 @@ export function filterFields(data, fields) {
           const hasObjectElements = obj[key].length > 0 &&
             typeof obj[key][0] === 'object' && obj[key][0] !== null;
           if (hasObjectElements) {
-            const nested = obj[key].map(item => filterObject(item))
+            const nested = obj[key].map(item => filterObject(item, path))
               .filter(item => Object.keys(item).length > 0);
             if (nested.length > 0) {
               filtered[key] = nested;
             }
           }
         } else {
-          // Plain object — always recurse in case it wraps requested fields
-          const nested = filterObject(obj[key]);
+          const nested = filterObject(obj[key], path);
           if (nested !== null && nested !== undefined && Object.keys(nested).length > 0) {
             filtered[key] = nested;
           }
@@ -106,7 +113,7 @@ export function filterFields(data, fields) {
     }
     return filtered;
   }
-  
+
   return filterObject(data);
 }
 

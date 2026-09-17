@@ -3424,6 +3424,47 @@ describe('filterFields', () => {
     expect(result.results[0].value).toBe(100);
   });
 
+  it('should support dot notation for an explicitly requested nested object', () => {
+    const data = {
+      data: {
+        results: [
+          { token_symbol: 'ETH', price_usd: 3000 }
+        ],
+        pagination: { page: 1 }
+      },
+      status: 'ok'
+    };
+
+    expect(filterFields(data, ['data.results'])).toEqual({
+      data: {
+        results: [
+          { token_symbol: 'ETH', price_usd: 3000 }
+        ]
+      }
+    });
+  });
+
+  it('should support dot notation through arrays to a nested leaf field', () => {
+    const data = {
+      data: {
+        results: [
+          { token_symbol: 'ETH', price_usd: 3000, ignored: true },
+          { token_symbol: 'SOL', price_usd: 150, ignored: true }
+        ],
+        pagination: { page: 1 }
+      }
+    };
+
+    expect(filterFields(data, ['data.results.token_symbol'])).toEqual({
+      data: {
+        results: [
+          { token_symbol: 'ETH' },
+          { token_symbol: 'SOL' }
+        ]
+      }
+    });
+  });
+
   it('should return original data when fields is empty', () => {
     const data = { a: 1, b: 2 };
     expect(filterFields(data, [])).toEqual(data);
