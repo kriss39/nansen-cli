@@ -1362,7 +1362,7 @@ export function buildCommands(deps = {}) {
       const subcommand = args[0] || 'help';
       let address = options.address;
       const entityName = options.entity || options['entity-name'];
-      const chain = options.chain || 'all';
+      const chain = options.chain;
 
       // Resolve ENS names (e.g. vitalik.eth → 0x...)
       let ensName;
