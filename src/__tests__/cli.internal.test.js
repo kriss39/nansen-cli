@@ -5018,6 +5018,38 @@ describe('compareWallets', () => {
     })).rejects.toThrow('Invalid');
   });
 
+  it('should propagate counterparty API failures instead of returning an empty comparison', async () => {
+    const mockApi = {
+      addressCounterparties: vi.fn()
+        .mockRejectedValueOnce(new Error('rate limited'))
+        .mockResolvedValueOnce({ counterparties: [] }),
+      addressBalance: vi.fn(),
+    };
+
+    await expect(compareWallets(mockApi, {
+      addresses: ['0x0000000000000000000000000000000000000001', '0x0000000000000000000000000000000000000002'],
+      chain: 'ethereum',
+      delayMs: 0,
+    })).rejects.toThrow('rate limited');
+
+    expect(mockApi.addressBalance).not.toHaveBeenCalled();
+  });
+
+  it('should propagate balance API failures instead of reporting a zero balance', async () => {
+    const mockApi = {
+      addressCounterparties: vi.fn().mockResolvedValue({ counterparties: [] }),
+      addressBalance: vi.fn()
+        .mockRejectedValueOnce(new Error('balance unavailable'))
+        .mockResolvedValueOnce({ balances: [] }),
+    };
+
+    await expect(compareWallets(mockApi, {
+      addresses: ['0x0000000000000000000000000000000000000001', '0x0000000000000000000000000000000000000002'],
+      chain: 'ethereum',
+      delayMs: 0,
+    })).rejects.toThrow('balance unavailable');
+  });
+
   it('should return comparison data', async () => {
     const mockApi = {
       addressCounterparties: vi.fn()

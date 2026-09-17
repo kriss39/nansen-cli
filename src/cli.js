@@ -774,13 +774,13 @@ export async function compareWallets(api, params = {}) {
 
   // Fetch counterparties and balances for both addresses
   const [cp1, cp2] = await Promise.all([
-    api.addressCounterparties({ address: addr1, chain, days }).catch(() => null),
-    api.addressCounterparties({ address: addr2, chain, days }).catch(() => null),
+    api.addressCounterparties({ address: addr1, chain, days }),
+    api.addressCounterparties({ address: addr2, chain, days }),
   ]);
   await sleep(delayMs);
   const [bal1, bal2] = await Promise.all([
-    api.addressBalance({ address: addr1, chain }).catch(() => null),
-    api.addressBalance({ address: addr2, chain }).catch(() => null),
+    api.addressBalance({ address: addr1, chain }),
+    api.addressBalance({ address: addr2, chain }),
   ]);
 
   // Extract counterparty addresses
